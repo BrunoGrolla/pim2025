@@ -1,63 +1,35 @@
 #include <stdio.h>
 #include <string.h>
 #include <locale.h>
-#include <conio.h>
 
 #define MAX_PRODUTOS 100
 #define MAX_FUNCIONARIOS 5
 
-void escondeSenha(char senha[], int tamanhoMax) {
-    int i = 0;
-    char caracSenha;
-
-    while (1) {
-        caracSenha = getch();
-        if (caracSenha == 13) { 
-            senha[i] = '\0';
-            break;
-        } else if (caracSenha == 8) {
-            if (i > 0) {
-                i--;
-                printf("\b \b");
-            }
-        } else if (i < tamanhoMax - 1) {
-            senha[i] = caracSenha;
-            i++;
-            printf("*");
-        }
-    }
-}
-
 struct Produto {
+    int codigo;
     char nome[50];
     int quantidade;
+    float precoUnidade; 
+    float precoQuilo;   
 };
 
-typedef struct {
-    char produto[50];
-    int tipoVenda;
-    float quantidadeProduto;
-    float precoUnitario;
-    float total;
-    char formaPagamento[10];
-} Venda;
-
-void pesarProdutos(float pesoProduto, char unidadeProduto[]) {
-    if (pesoProduto < 0) {
-        printf("Peso inválido!\n");
-    } else {
-        printf("O peso do produto é: %.2f %s\n", pesoProduto, unidadeProduto);
-    }
-}
+struct Funcionario {
+    char nome[50];
+    char sobrenome[50];
+    int idade;
+    char cargo[50];
+    char login[50];
+    char senha[50];
+};
 
 void salvarProdutos(struct Produto produtos[], int numProdutos) {
     FILE *file = fopen("produtos.txt", "w");
     if (file == NULL) {
-        printf("Erro ao abrir o arquivo de produtos!\n");
+        printf("Erro ao abrir o arquivo de produtos.\n");
         return;
     }
     for (int i = 0; i < numProdutos; i++) {
-        fprintf(file, "%s %d\n", produtos[i].nome, produtos[i].quantidade);
+        fprintf(file, "%d %s %d %.2f %.2f\n", produtos[i].codigo, produtos[i].nome, produtos[i].quantidade, produtos[i].precoUnidade, produtos[i].precoQuilo);
     }
     fclose(file);
 }
@@ -65,32 +37,88 @@ void salvarProdutos(struct Produto produtos[], int numProdutos) {
 int carregarProdutos(struct Produto produtos[]) {
     FILE *file = fopen("produtos.txt", "r");
     if (file == NULL) {
-        printf("Erro ao abrir o arquivo de produtos!\n");
         return 0;
     }
     int numProdutos = 0;
-    while (fscanf(file, "%s %d", produtos[numProdutos].nome, &produtos[numProdutos].quantidade) != EOF) {
+    while (fscanf(file, "%d %s %d %f %f", &produtos[numProdutos].codigo, produtos[numProdutos].nome, &produtos[numProdutos].quantidade, &produtos[numProdutos].precoUnidade, &produtos[numProdutos].precoQuilo) != EOF) {
         numProdutos++;
     }
     fclose(file);
     return numProdutos;
 }
 
-void exibirEstoque(struct Produto produtos[], int numProdutos) {
-    printf("\nESTOQUE:\n");
-    for (int i = 0; i < numProdutos; i++) {
-        printf("%s: %d unidades\n", produtos[i].nome, produtos[i].quantidade);
+int carregarFuncionarios(struct Funcionario funcionarios[]) {
+    FILE *file = fopen("funcionarios.txt", "r");
+    if (file == NULL) {
+        printf("Erro ao abrir o arquivo de funcionários.\n");
+        return 0;
     }
-    printf("\n");
+    int numFuncionarios = 0;
+    while (fscanf(file, "%s %s %d %s %s %s", funcionarios[numFuncionarios].nome, funcionarios[numFuncionarios].sobrenome, &funcionarios[numFuncionarios].idade, funcionarios[numFuncionarios].cargo, funcionarios[numFuncionarios].login, funcionarios[numFuncionarios].senha) != EOF) {
+        numFuncionarios++;
+    }
+    fclose(file);
+    return numFuncionarios;
+}
+
+int verificarLogin(char *login, char *senha, char *tipoUsuario) {
+    if (strcmp(login, "admin") == 0 && strcmp(senha, "admin123") == 0) {
+        strcpy(tipoUsuario, "admin");
+        return 1;
+    }
+
+    FILE *file = fopen("funcionarios.txt", "r");
+    if (file == NULL) {
+        printf("Erro ao abrir o arquivo de funcionários.\n");
+        return 0;
+    }
+    char loginArquivo[50], senhaArquivo[50], cargo[50];
+    while (fscanf(file, "%*s %*s %*d %s %s %s", cargo, loginArquivo, senhaArquivo) != EOF) {
+        if (strcmp(login, loginArquivo) == 0 && strcmp(senha, senhaArquivo) == 0) {
+            strcpy(tipoUsuario, cargo);
+            fclose(file);
+            return 1;
+        }
+    }
+    fclose(file);
+    return 0;
+}
+
+void adicionarProduto(struct Produto produtos[], int *numProdutos) {
+    if (*numProdutos >= MAX_PRODUTOS) {
+        printf("Limite de produtos atingido.\n");
+        return;
+    }
+    char nome[50];
+    int quantidade, codigo;
+    float precoUnidade, precoQuilo;
+    printf("Digite o código do produto: ");
+    scanf("%d", &codigo);
+    printf("Digite o nome do produto: ");
+    scanf("%s", nome);
+    printf("Digite a quantidade em estoque: ");
+    scanf("%d", &quantidade);
+    printf("Digite o preço por unidade: ");
+    scanf("%f", &precoUnidade);
+    printf("Digite o preço por quilograma: ");
+    scanf("%f", &precoQuilo);
+    produtos[*numProdutos].codigo = codigo;
+    strcpy(produtos[*numProdutos].nome, nome);
+    produtos[*numProdutos].quantidade = quantidade;
+    produtos[*numProdutos].precoUnidade = precoUnidade;
+    produtos[*numProdutos].precoQuilo = precoQuilo;
+    (*numProdutos)++;
+    salvarProdutos(produtos, *numProdutos);
+    printf("Produto adicionado com sucesso!\n");
 }
 
 void removerProduto(struct Produto produtos[], int *numProdutos) {
-    char nome[50];
-    printf("Digite o nome do produto que deseja remover: ");
-    scanf("%s", nome);
+    int codigo;
+    printf("Digite o código do produto que deseja remover: ");
+    scanf("%d", &codigo);
     int encontrado = 0;
     for (int i = 0; i < *numProdutos; i++) {
-        if (strcmp(produtos[i].nome, nome) == 0) {
+        if (produtos[i].codigo == codigo) {
             for (int j = i; j < *numProdutos - 1; j++) {
                 produtos[j] = produtos[j + 1];
             }
@@ -107,164 +135,58 @@ void removerProduto(struct Produto produtos[], int *numProdutos) {
     }
 }
 
-void adicionarProduto(struct Produto produtos[], int *numProdutos) {
-    if (*numProdutos >= MAX_PRODUTOS) {
-        printf("Limite de produtos cadastrados atingido.\n");
-        return;
-    }
-    char nome[50];
-    int quantidade;
-    printf("Digite o nome do produto: ");
-    scanf("%s", nome);
-    printf("Digite a quantidade em estoque: ");
-    scanf("%d", &quantidade);
+void caixa(struct Produto produtos[], int *numProdutos) {
+    int codigo, quantidade;
+    char unidade[10], formaPagamento[20];
+
+    printf("Digite o código do produto: ");
+    scanf("%d", &codigo);
+
+    int encontrado = 0;
     for (int i = 0; i < *numProdutos; i++) {
-        if (strcmp(produtos[i].nome, nome) == 0) {
-            produtos[i].quantidade += quantidade;
-            printf("Produto já existente! Quantidade atualizada com sucesso.\n");
+        if (produtos[i].codigo == codigo) {
+            encontrado = 1;
+            printf("Produto: %s\n", produtos[i].nome);
+            printf("Quantidade disponível: %d\n", produtos[i].quantidade);
+
+            printf("Digite a unidade (unidade ou quilograma): ");
+            scanf("%s", unidade);
+
+            printf("Digite a quantidade a vender: ");
+            scanf("%d", &quantidade);
+
+            if (quantidade > produtos[i].quantidade) {
+                printf("Quantidade insuficiente no estoque!\n");
+                return;
+            }
+
+            float precoVenda = (strcmp(unidade, "quilograma") == 0) ? produtos[i].precoQuilo : produtos[i].precoUnidade;
+
+            float valorTotal = precoVenda * quantidade;
+            printf("Preço por %s: %.2f\n", unidade, precoVenda);
+            printf("Valor total da venda: %.2f\n", valorTotal);
+
+            printf("Forma de pagamento (cartao/pix/dinheiro): ");
+            scanf("%s", formaPagamento);
+            printf("Venda realizada com sucesso!\n");
+
+            produtos[i].quantidade -= quantidade;
             salvarProdutos(produtos, *numProdutos);
-            return;
-        }
-    }
-    strcpy(produtos[*numProdutos].nome, nome);
-    produtos[*numProdutos].quantidade = quantidade;
-    (*numProdutos)++;
-    salvarProdutos(produtos, *numProdutos);
-    printf("Produto adicionado com sucesso!\n");
-}
-
-void salvarUsuarios() {
-    FILE *file = fopen("usuarios.txt", "w");
-    if (file == NULL) {
-        printf("Erro ao abrir o arquivo de usuários!\n");
-        return;
-    }
-    fprintf(file, "admin admin123\n");
-    fprintf(file, "estoque estoque123\n");
-    fprintf(file, "caixa caixa123\n");
-    fclose(file);
-}
-
-int verificarLogin(char *login, char *senha, char *tipoUsuario) {
-    FILE *file = fopen("usuarios.txt", "r");
-    if (file == NULL) {
-        printf("Erro ao abrir o arquivo de usuários!\n");
-        return 0;
-    }
-    char loginArquivo[50], senhaArquivo[50];
-    while (fscanf(file, "%s %s", loginArquivo, senhaArquivo) != EOF) {
-        if (strcmp(login, loginArquivo) == 0 && strcmp(senha, senhaArquivo) == 0) {
-            strcpy(tipoUsuario, loginArquivo);
-            fclose(file);
-            return 1;
-        }
-    }
-    fclose(file);
-    return 0;
-}
-
-void caixa() {
-    Venda venda;
-    char continuar;
-    float totalCompra = 0;
-    do {
-        printf("Digite o nome do produto: ");
-        scanf(" %[^\n]", venda.produto);
-        printf("Escolha o tipo de venda (1- Unidade, 2- Peso): ");
-        scanf("%d", &venda.tipoVenda);
-        if (venda.tipoVenda == 1) {
-            printf("Digite a quantidade de unidades: ");
-            scanf("%f", &venda.quantidadeProduto);
-        } else if (venda.tipoVenda == 2) {
-            printf("Digite o peso em gramas: ");
-            scanf("%f", &venda.quantidadeProduto);
-        }
-        printf("Digite o preço unitário (por unidade ou 1000 gramas): ");
-        scanf("%f", &venda.precoUnitario);
-        if (venda.tipoVenda == 2) {
-            venda.total = (venda.quantidadeProduto / 1000) * venda.precoUnitario;
-        } else {
-            venda.total = venda.quantidadeProduto * venda.precoUnitario;
-        }
-        totalCompra += venda.total;
-        printf("\nProduto: %s\n", venda.produto);
-        if (venda.tipoVenda == 1) {
-            printf("Quantidade: %.0f unidades\n", venda.quantidadeProduto);
-        } else {
-            printf("Peso: %.0f gramas\n", venda.quantidadeProduto);
-        }
-        printf("Subtotal: %.2f\n", venda.total);
-        printf("Deseja adicionar outro produto? (S/N): ");
-        scanf(" %c", &continuar);
-    } while (continuar == 'S' || continuar == 's');
-    printf("\nTotal da compra: R$%.2f\n", totalCompra);
-    printf("Forma de pagamento (1- Cartão, 2- Dinheiro, 3- PIX): ");
-    int opcaoPagamento;
-    scanf("%d", &opcaoPagamento);
-    switch (opcaoPagamento) {
-        case 1:
-            strcpy(venda.formaPagamento, "Cartão");
             break;
-        case 2:
-            strcpy(venda.formaPagamento, "Dinheiro");
-            break;
-        case 3:
-            strcpy(venda.formaPagamento, "PIX");
-            break;
-        default:
-            printf("Opção inválida!\n");
-            return;
+        }
     }
-    printf("\nCompra finalizada com sucesso! Forma de pagamento: %s\n", venda.formaPagamento);
-}
 
-struct Funcionario {
-    char nome[50];
-    char sobrenome[50];
-    int idade;
-    char cargo[50];
-};
-
-void salvarFuncionarios(struct Funcionario funcionarios[], int numFuncionarios) {
-    FILE *file = fopen("funcionarios.txt", "w");
-    if (file == NULL) {
-        printf("Erro ao abrir o arquivo de funcionários!\n");
-        return;
+    if (!encontrado) {
+        printf("Produto não encontrado.\n");
     }
-    for (int i = 0; i < numFuncionarios; i++) {
-        fprintf(file, "%s %s %d %s\n", funcionarios[i].nome, funcionarios[i].sobrenome, funcionarios[i].idade, funcionarios[i].cargo);
-    }
-    fclose(file);
-}
-
-int carregarFuncionarios(struct Funcionario funcionarios[]) {
-    FILE *file = fopen("funcionarios.txt", "r");
-    if (file == NULL) {
-        printf("Erro ao abrir o arquivo de funcionários!\n");
-        return 0;
-    }
-    int numFuncionarios = 0;
-    while (fscanf(file, "%s %s %d %s", funcionarios[numFuncionarios].nome, funcionarios[numFuncionarios].sobrenome, &funcionarios[numFuncionarios].idade, funcionarios[numFuncionarios].cargo) != EOF) {
-        numFuncionarios++;
-    }
-    fclose(file);
-    return numFuncionarios;
-}
-
-void exibirFuncionarios(struct Funcionario funcionarios[], int numFuncionarios) {
-    printf("\nLISTA DE FUNCIONÁRIOS:\n");
-    for (int i = 0; i < numFuncionarios; i++) {
-        printf("%s %s, Idade: %d, Cargo: %s\n", funcionarios[i].nome, funcionarios[i].sobrenome, funcionarios[i].idade, funcionarios[i].cargo);
-    }
-    printf("\n");
 }
 
 void adicionarFuncionario(struct Funcionario funcionarios[], int *numFuncionarios) {
     if (*numFuncionarios >= MAX_FUNCIONARIOS) {
-        printf("Limite de funcionários cadastrados atingido.\n");
+        printf("Limite de funcionários atingido.\n");
         return;
     }
-    char nome[50], sobrenome[50], cargo[50];
+    char nome[50], sobrenome[50], cargo[50], login[50], senha[50];
     int idade;
     printf("Digite o nome do funcionário: ");
     scanf("%s", nome);
@@ -272,28 +194,36 @@ void adicionarFuncionario(struct Funcionario funcionarios[], int *numFuncionario
     scanf("%s", sobrenome);
     printf("Digite a idade do funcionário: ");
     scanf("%d", &idade);
-    printf("Digite o cargo do funcionário: ");
+    printf("Digite o cargo do funcionário (estoque/caixa): ");
     scanf("%s", cargo);
+    printf("Digite o login do funcionário: ");
+    scanf("%s", login);
+    printf("Digite a senha do funcionário: ");
+    scanf("%s", senha);
+
     strcpy(funcionarios[*numFuncionarios].nome, nome);
     strcpy(funcionarios[*numFuncionarios].sobrenome, sobrenome);
     funcionarios[*numFuncionarios].idade = idade;
     strcpy(funcionarios[*numFuncionarios].cargo, cargo);
+    strcpy(funcionarios[*numFuncionarios].login, login);
+    strcpy(funcionarios[*numFuncionarios].senha, senha);
     (*numFuncionarios)++;
+
     salvarFuncionarios(funcionarios, *numFuncionarios);
     printf("Funcionário adicionado com sucesso!\n");
 }
 
 void removerFuncionario(struct Funcionario funcionarios[], int *numFuncionarios) {
-    char nome[50];
-    printf("Digite o nome do funcionário que deseja remover: ");
-    scanf("%s", nome);
+    char login[50];
+    printf("Digite o login do funcionário que deseja remover: ");
+    scanf("%s", login);
     int encontrado = 0;
     for (int i = 0; i < *numFuncionarios; i++) {
-        if (strcmp(funcionarios[i].nome, nome) == 0) {
+        if (strcmp(funcionarios[i].login, login) == 0) {
             for (int j = i; j < *numFuncionarios - 1; j++) {
                 funcionarios[j] = funcionarios[j + 1];
             }
-            (*numFuncionarios)--;
+            (*numFuncionarios)--; 
             encontrado = 1;
             break;
         }
@@ -306,41 +236,69 @@ void removerFuncionario(struct Funcionario funcionarios[], int *numFuncionarios)
     }
 }
 
+void salvarFuncionarios(struct Funcionario funcionarios[], int numFuncionarios) {
+    FILE *file = fopen("funcionarios.txt", "w");
+    if (file == NULL) {
+        printf("Erro ao abrir o arquivo de funcionários.\n");
+        return;
+    }
+    for (int i = 0; i < numFuncionarios; i++) {
+        fprintf(file, "%s %s %d %s %s %s\n", funcionarios[i].nome, funcionarios[i].sobrenome, funcionarios[i].idade, funcionarios[i].cargo, funcionarios[i].login, funcionarios[i].senha);
+    }
+    fclose(file);
+}
+
+void imprimirEstoque(struct Produto produtos[], int numProdutos) {
+    printf("----- Estoque de Produtos -----\n");
+    for (int i = 0; i < numProdutos; i++) {
+        printf("Código: %d, Produto: %s, Quantidade: %d, Preço por unidade: %.2f, Preço por quilo: %.2f\n",
+            produtos[i].codigo, produtos[i].nome, produtos[i].quantidade, produtos[i].precoUnidade, produtos[i].precoQuilo);
+    }
+}
+
+void imprimirFuncionarios(struct Funcionario funcionarios[], int numFuncionarios) {
+    printf("----- Lista de Funcionários -----\n");
+    for (int i = 0; i < numFuncionarios; i++) {
+        printf("Nome: %s %s, Idade: %d, Cargo: %s, Login: %s\n",
+            funcionarios[i].nome, funcionarios[i].sobrenome, funcionarios[i].idade, funcionarios[i].cargo, funcionarios[i].login);
+    }
+}
+
 int main() {
     setlocale(LC_ALL, "pt_BR.UTF-8");
 
     struct Produto produtos[MAX_PRODUTOS];
-    int numProdutos = carregarProdutos(produtos);
-
     struct Funcionario funcionarios[MAX_FUNCIONARIOS];
+    int numProdutos = carregarProdutos(produtos);
     int numFuncionarios = carregarFuncionarios(funcionarios);
 
-    salvarUsuarios();
-
     char login[50], senha[50], tipoUsuario[50];
-    printf("Digite seu login: ");
+    printf("Login: ");
     scanf("%s", login);
-    printf("Digite sua senha: ");
-    escondeSenha(senha, sizeof(senha));
-    printf("\n");
+    printf("Senha: ");
+    scanf("%s", senha);
 
     if (verificarLogin(login, senha, tipoUsuario)) {
-        printf("Login bem-sucedido! Tipo de usuário: %s\n", tipoUsuario);
         if (strcmp(tipoUsuario, "admin") == 0) {
-            int opcaoAdmin;
+            int opcao;
             do {
-                printf("\nMenu Admin:\n");
-                printf("1 - Adicionar Produto\n");
-                printf("2 - Remover Produto\n");
-                printf("3 - Exibir Estoque\n");
-                printf("4 - Adicionar Funcionário\n");
-                printf("5 - Remover Funcionário\n");
-                printf("6 - Exibir Funcionários\n");
-                printf("7 - Sistema de caixa\n");
-                printf("0 - Sair\n");
+                printf("----- Menu Admin -----\n");
+                printf("1. Adicionar produto\n");
+                printf("2. Remover produto\n");
+                printf("\n----------------------\n");
+                printf("3. Adicionar funcionário\n");
+                printf("4. Remover funcionário\n");
+                printf("\n----------------------\n");
+                printf("5. Imprimir estoque\n");
+                printf("6. Imprimir funcionários\n");
+                printf("\n----------------------\n");
+                printf("7. Realizar venda (Caixa)\n");
+                printf("\n----------------------\n");
+                printf("0. Sair\n");
                 printf("Escolha uma opção: ");
-                scanf("%d", &opcaoAdmin);
-                switch (opcaoAdmin) {
+                scanf("%d", &opcao);
+
+                switch (opcao) {
                     case 1:
                         adicionarProduto(produtos, &numProdutos);
                         break;
@@ -348,60 +306,36 @@ int main() {
                         removerProduto(produtos, &numProdutos);
                         break;
                     case 3:
-                        exibirEstoque(produtos, numProdutos);
-                        break;
-                    case 4:
                         adicionarFuncionario(funcionarios, &numFuncionarios);
                         break;
-                    case 5:
+                    case 4:
                         removerFuncionario(funcionarios, &numFuncionarios);
                         break;
+                    case 5:
+                        imprimirEstoque(produtos, numProdutos);
+                        break;
                     case 6:
-                        exibirFuncionarios(funcionarios, numFuncionarios);
+                        imprimirFuncionarios(funcionarios, numFuncionarios);
                         break;
                     case 7:
-                        caixa();
+                        caixa(produtos, &numProdutos);
                         break;
                     case 0:
-                        printf("Programa Encerrado!\n");
+                        printf("Programa encerrado!\n");
                         break;
                     default:
-                        printf("Opção inválida!\n");
+                        printf("Opção inválida.\n");
                 }
-            } while (opcaoAdmin != 0);
-        } else if (strcmp(tipoUsuario, "estoque") == 0) {
-            int opcaoEstoque;
-            do {
-                printf("\nMenu Estoque:\n");
-                printf("1 - Adicionar Produto\n");
-                printf("2 - Remover Produto\n");
-                printf("3 - Exibir Estoque\n");
-                printf("0 - Sair\n");
-                printf("Escolha uma opção: ");
-                scanf("%d", &opcaoEstoque);
-                switch (opcaoEstoque) {
-                    case 1:
-                        adicionarProduto(produtos, &numProdutos);
-                        break;
-                    case 2:
-                        removerProduto(produtos, &numProdutos);
-                        break;
-                    case 3:
-                        exibirEstoque(produtos, numProdutos);
-                        break;
-                    case 0:
-                        printf("Programa Encerrado!\n");
-                        break;
-                    default:
-                        printf("Opção inválida!\n");
-                }
-            } while (opcaoEstoque != 0);
+            } while (opcao != 0);
         } else if (strcmp(tipoUsuario, "caixa") == 0) {
-            caixa();
+            caixa(produtos, &numProdutos);
+        } else {
+            printf("Acesso negado. Usuário sem permissões.\n");
         }
     } else {
-        printf("Login e/ou senha inválidos!\n");
-        printf("Esqueceu a senha? Entre em contato com o seu administrador!");
+        printf("Login ou senha inválidos.\n");
     }
+
     return 0;
 }
+
